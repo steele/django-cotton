@@ -483,3 +483,17 @@ class AttributeHandlingTests(CottonTestCase):
         self.assertTrue(
             "in default slot: <strong {% if 1 == 2 %}hidden{% endif %}></strong>" in compiled
         )
+
+    def test_attribute_spreading(self):
+        self.create_template(
+            "attribute_spreading_view.html",
+            """<c-attribute-spreading mixes-correctly="yes" :attrs="{'attribute_1': 'hello', ':list': '[3, 2, 1]', ':num': '4'}" />""",
+            "view/",
+        )
+        self.create_template("cotton/attribute_spreading.html", """<c-vars list /><div {{ attrs }}>First list item: {{ list.0 }}</div>""")
+
+        with self.settings(ROOT_URLCONF=self.url_conf()):
+            response = self.client.get("/view/")
+            self.assertContains(
+                response, '<div mixes-correctly="yes" attribute_1="hello" num="4">First list item: 3</div>'
+            )

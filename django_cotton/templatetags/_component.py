@@ -36,18 +36,26 @@ class CottonComponentNode(Node):
         cotton_data["stack"].append(component_data)
 
         # Process simple attributes and boolean attributes
-        for key, value in self.attrs.items():
-            value = self._strip_quotes_safely(value)
-            if value is True:  # Boolean attribute
-                component_data["attrs"][key] = True
-            elif key.startswith(":"):
-                key = key[1:]
-                try:
-                    component_data["attrs"][key] = DynamicAttr(value).resolve(context)
-                except UnprocessableDynamicAttr:
-                    component_data["attrs"].unprocessable(key)
-            else:
-                component_data["attrs"][key] = value
+        def process_attrs(attrs):
+            for key, value in attrs.items():
+                value = self._strip_quotes_safely(value)
+                if value is True:  # Boolean attribute
+                    component_data["attrs"][key] = True
+                elif key.startswith(":"):
+                    key = key[1:]
+                    try:
+                        if key == "attrs":  # Special case for spreading attributes
+                            to_spread = DynamicAttr(value).resolve(context)
+                            if not isinstance(to_spread, dict):
+                                raise UnprocessableDynamicAttr()
+                            process_attrs(to_spread)
+                        else:
+                            component_data["attrs"][key] = DynamicAttr(value).resolve(context)
+                    except UnprocessableDynamicAttr:
+                        component_data["attrs"].unprocessable(key)
+                else:
+                    component_data["attrs"][key] = value
+        process_attrs(self.attrs)
 
         # Render the nodelist to process any slot tags and vars
         default_slot = self.nodelist.render(context)
